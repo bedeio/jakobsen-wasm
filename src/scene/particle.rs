@@ -99,16 +99,8 @@ impl Particles {
         self.curr_pos
     }
 
-    pub fn get_prev_pos(&self, ind: usize) -> Vec2D {
+    pub fn get_particle(&self, ind: usize) -> Particle {
         self.prev_pos[ind]
-    }
-
-    pub fn get_curr_pos(&self, ind: usize) -> Vec2D {
-        self.curr_pos[ind]
-    }
-
-    pub fn get_mass(&self, ind: usize) -> Vec2D {
-        self.curr_pos[ind]
     }
 }
 
