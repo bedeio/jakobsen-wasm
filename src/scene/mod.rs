@@ -1,10 +1,10 @@
-mod constraints;
-mod particles;
+mod constraint;
+mod particle;
 
-pub use constraints::Cmp;
-pub use constraints::Projective;
-pub use particles::Particles;
-pub use particles::Vec2D;
+pub use constraint::Cmp;
+pub use constraint::Projective;
+pub use particle::ParticleManager;
+pub use particle::Vec2D;
 pub use std::sync::Arc;
 
 use wasm_bindgen::prelude::*;
@@ -14,7 +14,7 @@ use wasm_bindgen::prelude::*;
 pub struct Scene {
     width: u32,
     height: u32,
-    particles: Particles,
+    manager: ParticleManager,
     timestep: f32,
 }
 
@@ -22,10 +22,7 @@ pub struct Scene {
 impl Scene {
     #[wasm_bindgen(constructor)]
     pub fn new(width: u32, height: u32) -> Scene {
-        let mass = Vec::new();
-        let curr_pos = Vec::new();
-        let prev_pos = Vec::new();
-        let particles = Particles::new(curr_pos, prev_pos, mass);
+        let particles = ParticleManager::new();
 
         Scene {
             width,
@@ -45,11 +42,11 @@ impl Scene {
 
     pub fn particles_length(&self) -> usize {
         //multiply by 2 since we are in 2 dimensions
-        2 * self.particles.mass.len()
+        2 * self.manager.len()
     }
 
     pub fn particle_positions(&self) -> *const Vec2D {
-        self.particles.curr_pos.as_ptr()
+        self.manager.particles.curr_pos.as_ptr()
     }
 
     pub fn add_particle(&mut self, prev_pos: JsValue, curr_pos: JsValue, mass: f32) -> usize {
@@ -58,20 +55,19 @@ impl Scene {
         self.particles.add(prev, curr, mass);
         return self.particles.mass.len() - 1;
     }
-
     pub fn add_point_constraint(&mut self, ind: usize, to_ind: usize, dist: u32, cmp: Cmp) {
         let cons = Projective::ToPoint {
             ind: to_ind,
             dist,
             cmp,
         };
-        self.particles.constraints[ind].push(cons);
+        self.particles.constraint[ind].push(cons);
     }
 
     pub fn add_fixed_constraint(&mut self, ind: usize, fixed: JsValue, dist: u32, cmp: Cmp) {
         let fixed = fixed.into_serde().unwrap();
         let cons = Projective::ToFixed { fixed, dist, cmp };
-        self.particles.constraints[ind].push(cons);
+        self.particles.constraint[ind].push(cons);
     }
 
     pub fn set_curr_pos(&mut self, ind: usize, pos: JsValue) {
@@ -86,14 +82,14 @@ impl Scene {
 
     pub fn set_force(&mut self, ind: usize, force: JsValue) {
         let force = force.into_serde().unwrap();
-        self.particles.forces[ind] = force;
+        self.particles.force[ind] = force;
     }
 
     pub fn step(&mut self) {
         for _ in 0..3 {
-            //self.satisfy_constraints_jacobian();
+            //self.satisfy_constraint_jacobian();
             for i in 0..self.particles.mass.len() {
-                self.satisfy_constraints(i);
+                self.satisfy_constraint(i);
             }
         }
 
@@ -108,7 +104,7 @@ impl Scene {
         // integration
         let prev = self.particles.prev_pos[ind];
         let mut curr = self.particles.curr_pos[ind];
-        let mut res_force = self.particles.forces[ind];
+        let mut res_force = self.particles.force[ind];
         let mass = self.particles.mass[ind];
         self.particles.prev_pos[ind] = curr;
 
@@ -120,8 +116,8 @@ impl Scene {
         self.particles.curr_pos[ind] = curr;
     }
 
-    pub fn satisfy_constraints(&mut self, ind_curr: usize) {
-        let cons = &self.particles.constraints;
+    pub fn satisfy_constraint(&mut self, ind_curr: usize) {
+        let cons = &self.particles.constraint;
         let curr = &mut self.particles.curr_pos;
 
         for c in 0..cons[ind_curr].len() {
@@ -144,6 +140,7 @@ impl Scene {
     }
 
     fn constraint_delta(pos: Vec2D, c_pos: Vec2D, c_dist: u32, cmp: Cmp) -> Vec2D {
+        let tol = 1e-8;
         let dx = pos.x - c_pos.x;
         let dy = pos.y - c_pos.y;
         //TODO: remove this sqrt using scheme in Jakobsens paper
@@ -167,7 +164,7 @@ impl Scene {
         }
 
         // TODO: move tolerance magic value somewhere else
-        if d < 10e-6 {
+        if d < tol {
             return Vec2D::zero();
         }
 
