@@ -1,10 +1,22 @@
-use super::Vec2D;
+use super::{ParticleId, Vec2};
 use wasm_bindgen::prelude::*;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Pair(pub ParticleId, pub ParticleId);
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Projective {
-    ToPoint { ind: usize, dist: u32, cmp: Cmp },
-    ToFixed { fixed: Vec2D, dist: u32, cmp: Cmp },
+    ToPoint {
+        particles: Pair,
+        dist: u32,
+        cmp: Cmp,
+    },
+    ToFixed {
+        particle: ParticleId,
+        fixed: Vec2,
+        dist: u32,
+        cmp: Cmp,
+    },
 }
 
 #[wasm_bindgen]
