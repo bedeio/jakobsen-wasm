@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Object {
     particles: Vec<ParticleId>,
-    constraints: Vec<ConstraintId>,
+    edges: Vec<ConstraintId>,
 }
 
 impl Object {
